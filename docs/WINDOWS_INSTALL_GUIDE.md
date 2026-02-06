@@ -344,6 +344,123 @@ C:\douyin-live-ai-assistant\
 
 ## 🔧 常见问题排查
 
+### 问题0: npm install 失败 - Windows SDK 错误
+
+**症状**: 安装时报错 `找不到 Windows SDK 版本 10.0.22621.0` 或 `speaker` 模块编译失败
+
+**完整错误信息**:
+```
+error MSB8036: 找不到 Windows SDK 版本 10.0.22621.0
+gyp ERR! build error
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe failed with exit code: 1
+```
+
+**原因**: `speaker` 模块需要编译 C++ 代码，但系统缺少所需的 Windows SDK
+
+**解决方案（选择其一）**:
+
+#### 方案 A: 安装 Windows SDK（推荐，完整功能）
+
+1. **打开 Visual Studio Installer**:
+   - 按 `Win` 键搜索 "Visual Studio Installer"
+   - 或访问 https://visualstudio.microsoft.com/downloads/
+
+2. **修改安装**:
+   - 找到 "Visual Studio 2022 生成工具" 或 "Visual Studio 2022"
+   - 点击 "修改" 按钮
+
+3. **安装 Windows 10 SDK**:
+   - 切换到 "单个组件" 标签页
+   - 搜索框输入 "Windows 10 SDK"
+   - 勾选以下任一版本:
+     - `Windows 10 SDK (10.0.26100.0)` (推荐最新版)
+     - `Windows 10 SDK (10.0.22621.0)` (错误提示的版本)
+     - 或任意其他 Windows 10 SDK 版本
+   - 点击 "修改" 开始安装
+
+4. **重新安装项目依赖**:
+   ```cmd
+   cd C:\Users\Administrator\douyin
+   
+   # 清理之前的安装
+   rmdir /s /q node_modules
+   del package-lock.json
+   
+   # 重新安装
+   npm install
+   ```
+
+#### 方案 B: 跳过 speaker 模块（快速，但无音频播放）
+
+如果暂时不需要音频播放功能（仅测试弹幕监听和AI问答）:
+
+```cmd
+cd C:\Users\Administrator\douyin
+
+# 清理
+rmdir /s /q node_modules
+del package-lock.json
+
+# 安装，跳过可选依赖
+npm install
+```
+
+**注意**: 项目已将 `speaker` 设为可选依赖，即使安装失败也不会中断整个安装过程。
+
+**验证**:
+- 安装完成后运行: `npm start`
+- 如果 speaker 未安装，会看到警告，但程序仍可运行
+- 音频播放会被跳过，但其他功能正常
+
+#### 方案 C: 使用预编译的 speaker（高级）
+
+```cmd
+# 下载预编译版本（如果可用）
+npm install --platform=win32 --arch=x64 speaker
+
+# 或指定特定 Node.js 版本
+npm install speaker --build-from-source=false
+```
+
+#### 方案 D: 使用纯JavaScript音频库（最简单） ⭐ **强烈推荐**
+
+**无需Windows SDK，无需编译，立即可用！**
+
+项目已创建 `audio-player-windows.js` 模块，支持多种纯JS音频库：
+
+```cmd
+cd C:\Users\Administrator\douyin
+
+# 1. 安装 play-sound（推荐）
+npm install play-sound
+
+# 或安装 node-wav-player
+npm install node-wav-player
+
+# 2. 重新安装项目依赖
+npm install
+
+# 3. 启动程序
+npm start
+```
+
+**优点**：
+- ✅ **无需Windows SDK**
+- ✅ 安装简单，一条命令搞定
+- ✅ 自动调用Windows系统播放器
+- ✅ 支持WAV/MP3等多种格式
+- ✅ 如果都未安装，会自动降级到PowerShell播放
+
+**工作原理**：
+- 程序会自动检测可用的音频后端
+- 优先使用 `speaker`（如已安装）
+- 其次使用 `play-sound` 或 `node-wav-player`
+- 最后降级到 PowerShell（Windows内置，零依赖）
+
+**详细说明**：查看 [WINDOWS_AUDIO_SOLUTIONS.md](file:///Users/zhexianliu/douyin/docs/WINDOWS_AUDIO_SOLUTIONS.md)
+
+---
+
 ### 问题1: DouyinBarrageGrab 无法启动
 
 **症状**: 双击运行后闪退或报错

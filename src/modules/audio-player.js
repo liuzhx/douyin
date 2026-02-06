@@ -1,5 +1,11 @@
 const EventEmitter = require('events');
-const Speaker = require('speaker');
+let Speaker;
+try {
+    Speaker = require('speaker');
+} catch (err) {
+    console.warn('[音频播放] Speaker模块未安装，音频播放功能将被禁用');
+    console.warn('[音频播放] 如需启用，请安装Windows SDK并重新运行: npm install speaker');
+}
 const logger = require('../utils/logger');
 
 /**
@@ -113,6 +119,15 @@ class AudioPlayer extends EventEmitter {
     playAudio(audioData, format) {
         return new Promise((resolve, reject) => {
             try {
+                // 检查Speaker是否可用
+                if (!Speaker) {
+                    logger.warn('[音频播放] Speaker模块未安装，跳过音频播放');
+                    logger.info('[音频播放] 提示: 安装Windows SDK后运行 npm install speaker 即可启用音频功能');
+                    // 模拟播放延迟后直接返回
+                    setTimeout(() => resolve(), 100);
+                    return;
+                }
+
                 // 创建Speaker实例
                 this.currentSpeaker = new Speaker({
                     channels: format.channels || this.audioFormat.channels,
