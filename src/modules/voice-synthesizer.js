@@ -94,6 +94,7 @@ class VoiceSynthesizer extends EventEmitter {
         const appId = config.get('seedTts.appId');
         const accessToken = config.get('seedTts.accessToken');
         const voiceType = options.voiceType || config.get('seedTts.voiceType');
+        const resourceId = config.get('seedTts.resourceId');
 
         // V3 API请求格式
         const requestBody = {
@@ -110,7 +111,8 @@ class VoiceSynthesizer extends EventEmitter {
                 encoding: options.encoding || "mp3",
                 speed_ratio: options.speedRatio || 1.0,
                 volume_ratio: options.volumeRatio || 1.0,
-                pitch_ratio: options.pitchRatio || 1.0
+                pitch_ratio: options.pitchRatio || 1.0,
+                resource_id: resourceId
             },
             request: {
                 reqid: require('crypto').randomUUID(),
