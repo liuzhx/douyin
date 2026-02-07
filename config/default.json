@@ -12,10 +12,11 @@
         "appKey": "PlgvMymc7f3tQnJ6"
     },
     "seedTts": {
-        "apiUrl": "https://openspeech.bytedance.com/api/v3/tts/submit",
-        "accessToken": "YOUR_TTS_ACCESS_TOKEN",
+        "wsUrl": "wss://openspeech.bytedance.com/api/v3/tts/bidirection",
+        "appId": "YOUR_APP_ID",
+        "accessToken": "YOUR_ACCESS_TOKEN",
         "voiceType": "zh_female_tianmeitaozi_mars_bigtts",
-        "resourceId": "seed-tts-2.0"
+        "resourceId": "auto"
     },
     "narrator": {
         "mode": "sequential",

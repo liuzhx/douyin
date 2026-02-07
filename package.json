@@ -1,36 +1,38 @@
 {
-    "name": "douyin-live-ai-assistant",
-    "version": "1.0.0",
-    "description": "智能旅游直播间助手 - 自动讲解景点与语音问答",
-    "main": "src/index.js",
-    "scripts": {
-        "start": "node src/index.js",
-        "dev": "node src/index.js",
-        "test": "jest",
-        "test:barrage": "node tests/test-barrage-connection.js",
-        "test:tts": "node tests/test-seed-tts.js",
-        "test:realtime": "node tests/test-doubao-realtime.js"
-    },
-    "keywords": [
-        "douyin",
-        "live-stream",
-        "ai-assistant",
-        "tts",
-        "voice-synthesis"
-    ],
-    "author": "",
-    "license": "MIT",
-    "dependencies": {
-        "ws": "^8.14.0",
-        "axios": "^1.6.0",
-        "config": "^3.3.9",
-        "winston": "^3.11.0",
-        "wav": "^1.0.2"
-    },
-    "optionalDependencies": {
-        "speaker": "^0.5.4"
-    },
-    "devDependencies": {
-        "jest": "^29.7.0"
-    }
+  "name": "douyin-live-ai-assistant",
+  "version": "1.0.0",
+  "description": "智能旅游直播间助手 - 自动讲解景点与语音问答",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node src/index.js",
+    "test": "jest",
+    "test:barrage": "node tests/test-barrage-connection.js",
+    "test:tts": "node tests/test-seed-tts.js",
+    "test:tts:ws": "node tests/test-seed-tts-websocket.js",
+    "test:realtime": "node tests/test-doubao-realtime.js"
+  },
+  "keywords": [
+    "douyin",
+    "live-stream",
+    "ai-assistant",
+    "tts",
+    "voice-synthesis"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "config": "^3.3.9",
+    "uuid": "^9.0.1",
+    "wav": "^1.0.2",
+    "winston": "^3.11.0",
+    "ws": "^8.14.0"
+  },
+  "optionalDependencies": {
+    "speaker": "^0.5.4"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
 }
