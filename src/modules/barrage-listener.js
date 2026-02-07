@@ -61,7 +61,10 @@ class BarrageListener extends EventEmitter {
      */
     handleMessage(data) {
         try {
-            const message = JSON.parse(data.toString());
+            const rawText = data.toString();
+            logger.debug(`[弹幕监听] 原始消息: ${rawText.substring(0, 300)}`);
+
+            const message = JSON.parse(rawText);
 
             logger.debug(`[弹幕监听] 收到消息, MsgType=${message.MsgType}, Content=${message.Content}`);
 
