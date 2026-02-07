@@ -114,50 +114,48 @@ class BarrageListener extends EventEmitter {
             logger.debug(`[弹幕监听] 错误详情: ${error.stack}`);
         }
     }
-}
-    }
 
-/**
+    /**
 * 计划重连
 */
-scheduleReconnect() {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        logger.error('[弹幕监听] 已达到最大重连次数，停止重连');
-        this.emit('max-reconnect-reached');
-        return;
+    scheduleReconnect() {
+        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            logger.error('[弹幕监听] 已达到最大重连次数，停止重连');
+            this.emit('max-reconnect-reached');
+            return;
+        }
+
+        this.reconnectAttempts++;
+        logger.info(`[弹幕监听] ${this.reconnectInterval / 1000}秒后尝试第 ${this.reconnectAttempts} 次重连...`);
+
+        this.reconnectTimer = setTimeout(() => {
+            this.connect();
+        }, this.reconnectInterval);
     }
 
-    this.reconnectAttempts++;
-    logger.info(`[弹幕监听] ${this.reconnectInterval / 1000}秒后尝试第 ${this.reconnectAttempts} 次重连...`);
+    /**
+     * 断开连接
+     */
+    disconnect() {
+        logger.info('[弹幕监听] 正在断开连接...');
 
-    this.reconnectTimer = setTimeout(() => {
-        this.connect();
-    }, this.reconnectInterval);
-}
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+        }
 
-/**
- * 断开连接
- */
-disconnect() {
-    logger.info('[弹幕监听] 正在断开连接...');
-
-    if (this.reconnectTimer) {
-        clearTimeout(this.reconnectTimer);
-        this.reconnectTimer = null;
+        if (this.ws) {
+            this.ws.close();
+            this.ws = null;
+        }
     }
 
-    if (this.ws) {
-        this.ws.close();
-        this.ws = null;
+    /**
+     * 获取连接状态
+     */
+    isConnected() {
+        return this.ws && this.ws.readyState === WebSocket.OPEN;
     }
-}
-
-/**
- * 获取连接状态
- */
-isConnected() {
-    return this.ws && this.ws.readyState === WebSocket.OPEN;
-}
 }
 
 module.exports = BarrageListener;
