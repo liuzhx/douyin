@@ -1,28 +1,43 @@
 {
-  "name": "volc-speech-js-sdk",
+  "name": "douyin-live-ai-assistant",
+  "version": "1.0.0",
+  "description": "智能旅游直播间助手系统",
+  "main": "src/index.js",
   "scripts": {
-    "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix",
+    "start": "node src/index.js",
+    "test:barrage": "node tests/test-barrage.js",
+    "test:tts": "node tests/test-tts.js",
+    "test:realtime": "node tests/test-realtime.js",
+    "lint": "eslint src/**/*.js",
+    "lint:fix": "eslint src/**/*.js --fix",
     "prettier": "prettier --write ."
   },
   "dependencies": {
-    "commander": "^14.0.0",
-    "dotenv": "^17.2.0",
-    "uuid": "^11.1.0",
-    "ws": "^8.18.3"
+    "axios": "^1.6.0",
+    "config": "^3.3.9",
+    "uuid": "^9.0.1",
+    "winston": "^3.11.0",
+    "ws": "^8.14.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",
-    "@types/node": "^24.0.13",
-    "@types/uuid": "^10.0.0",
-    "@types/ws": "^8.18.1",
-    "@typescript-eslint/eslint-plugin": "^8.36.0",
-    "@typescript-eslint/parser": "^8.36.0",
     "eslint": "^9.30.1",
     "globals": "^16.3.0",
-    "prettier": "^3.6.2",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.8.3",
-    "typescript-eslint": "^8.36.0"
-  }
+    "prettier": "^3.6.2"
+  },
+  "optionalDependencies": {
+    "speaker": "^0.5.4"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "keywords": [
+    "douyin",
+    "tts",
+    "ai",
+    "live-stream",
+    "volcengine"
+  ],
+  "author": "",
+  "license": "MIT"
 }
