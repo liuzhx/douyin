@@ -16,7 +16,7 @@
         "appId": "3003499965",
         "accessToken": "0CRBPdn9zguztvzUaMsnqAmaXhLZ2yyn",
         "voiceType": "S_DNUmHxuJ1",
-        "resourceId": "volc.megatts.default"
+        "resourceId": "seed-tts-2.0"
     },
     "narrator": {
         "mode": "sequential",

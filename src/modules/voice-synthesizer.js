@@ -92,60 +92,107 @@ class VoiceSynthesizer extends EventEmitter {
 
         const apiUrl = config.get('seedTts.apiUrl');
         const appId = config.get('seedTts.appId');
-        const accessToken = config.get('seedTts.accessToken');
+        const accessKey = config.get('seedTts.accessToken');
         const voiceType = options.voiceType || config.get('seedTts.voiceType');
-        const resourceId = config.get('seedTts.resourceId');
+        const encoding = options.encoding || 'mp3';
 
-        // V3 API请求格式
-        const requestBody = {
-            app: {
-                appid: appId,
-                token: accessToken,
-                cluster: "volcano_tts"
-            },
+        // 准备请求头 - 与成功案例一致
+        const headers = {
+            'X-Api-App-Id': appId,
+            'X-Api-Access-Key': accessKey,
+            'X-Api-Resource-Id': 'seed-tts-2.0',
+            'Content-Type': 'application/json',
+            'Connection': 'keep-alive'
+        };
+
+        // 准备请求体 - 与成功案例一致
+        const payload = {
             user: {
-                uid: "anonymous"
+                uid: require('crypto').randomUUID()
             },
-            audio: {
-                voice_type: voiceType,
-                encoding: options.encoding || "mp3",
-                speed_ratio: options.speedRatio || 1.0,
-                volume_ratio: options.volumeRatio || 1.0,
-                pitch_ratio: options.pitchRatio || 1.0,
-                resource_id: resourceId
-            },
-            request: {
-                reqid: require('crypto').randomUUID(),
+            req_params: {
                 text: text,
-                text_type: "plain",
-                operation: "query",
-                with_frontend: 1,
-                frontend_type: "unitTson"
+                speaker: voiceType,  // 使用 speaker 而不是 voice_type
+                audio_params: {
+                    format: encoding,
+                    sample_rate: options.sampleRate || 24000,
+                    enable_timestamp: true
+                },
+                additions: JSON.stringify({
+                    disable_markdown_filter: false
+                })
             }
         };
 
         try {
-            const response = await axios.post(
-                apiUrl,
-                requestBody,
-                {
-                    headers: {
-                        'Authorization': `Bearer;${accessToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    timeout: 30000
-                }
-            );
+            logger.debug(`[语音合成] 请求URL: ${apiUrl}`);
+            logger.debug(`[语音合成] 请求头: App-Id=${appId}, Resource-Id=seed-tts-2.0`);
 
-            logger.info('[语音合成] Seed-TTS合成成功');
+            const response = await axios.post(apiUrl, payload, {
+                headers: headers,
+                responseType: 'stream',  // 流式响应
+                timeout: 60000
+            });
 
-            // V3 API返回JSON格式，音频数据是base64编码的
-            if (response.data && response.data.data) {
-                const audioBase64 = response.data.data;
-                return Buffer.from(audioBase64, 'base64');
-            } else {
-                throw new Error('响应格式不正确：缺少音频数据');
-            }
+            logger.info('[语音合成] 开始接收流式响应');
+
+            // 处理流式响应
+            const audioChunks = [];
+            let buffer = '';
+            let chunkCount = 0;
+
+            return new Promise((resolve, reject) => {
+                response.data.on('data', (chunk) => {
+                    chunkCount++;
+                    buffer += chunk.toString();
+
+                    // 按行处理 JSON
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        if (!line.trim()) continue;
+
+                        try {
+                            const data = JSON.parse(line);
+
+                            if (data.code === 0 && data.data) {
+                                // 音频数据块 (base64编码)
+                                const audioBuffer = Buffer.from(data.data, 'base64');
+                                audioChunks.push(audioBuffer);
+                                logger.debug(`[语音合成] 收到音频块 ${audioChunks.length}, 大小: ${audioBuffer.length} bytes`);
+                            } else if (data.code === 20000000) {
+                                // 合成完成
+                                logger.info(`[语音合成] 合成完成, 共 ${audioChunks.length} 个音频块`);
+                                if (data.usage) {
+                                    logger.debug(`[语音合成] 使用统计: ${JSON.stringify(data.usage)}`);
+                                }
+                            } else if (data.code > 0) {
+                                logger.error(`[语音合成] API错误: ${data.message || data.code}`);
+                                reject(new Error(`TTS API错误: ${data.message || data.code}`));
+                            }
+                        } catch (parseError) {
+                            logger.error(`[语音合成] JSON解析失败: ${parseError.message}`);
+                        }
+                    }
+                });
+
+                response.data.on('end', () => {
+                    if (audioChunks.length === 0) {
+                        logger.error('[语音合成] 未收到音频数据');
+                        reject(new Error('未收到音频数据'));
+                    } else {
+                        const finalAudio = Buffer.concat(audioChunks);
+                        logger.info(`[语音合成] 合成成功, 音频总大小: ${finalAudio.length} bytes`);
+                        resolve(finalAudio);
+                    }
+                });
+
+                response.data.on('error', (error) => {
+                    logger.error(`[语音合成] 流错误: ${error.message}`);
+                    reject(error);
+                });
+            });
 
         } catch (error) {
             logger.error(`[语音合成] Seed-TTS合成失败: ${error.message}`);
