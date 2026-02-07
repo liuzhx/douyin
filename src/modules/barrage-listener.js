@@ -64,89 +64,100 @@ class BarrageListener extends EventEmitter {
             const rawText = data.toString();
             logger.debug(`[弹幕监听] 原始消息: ${rawText.substring(0, 300)}`);
 
-            const message = JSON.parse(rawText);
+            // 第一层解析：获取外层结构
+            const outerMessage = JSON.parse(rawText);
 
-            logger.debug(`[弹幕监听] 收到消息, MsgType=${message.MsgType}, Content=${message.Content}`);
-
-            // 仅处理普通弹幕消息 (MsgType === 1)
-            if (message.MsgType === 1 && message.Content) {
-                const barrage = {
-                    user: message.User?.Nickname || '匿名用户',
-                    userId: message.User?.UserId || '',
-                    content: message.Content,
-                    timestamp: message.Timestamp || Date.now(),
-                    isAdmin: message.User?.IsAdmin || false,
-                    isAnchor: message.User?.IsAnchor || false
-                };
-
-                logger.info(`[弹幕] ${barrage.user}: ${barrage.content}`);
-
-                // 触发弹幕事件
-                this.emit('barrage', barrage);
-
-                // 检测是否为问题
-                const isQuestionResult = isQuestion(barrage.content);
-                logger.debug(`[问题检测] 检测结果: ${isQuestionResult}, 内容: ${barrage.content}`);
-
-                if (isQuestionResult) {
-                    logger.info(`[问题检测] ✅ 识别为问题: ${barrage.user}: ${barrage.content}`);
-                    this.emit('question', barrage);
-                } else {
-                    logger.debug(`[问题检测] ❌ 不是问题: ${barrage.content}`);
-                }
-            } else {
-                logger.debug(`[弹幕监听] 跳过消息, MsgType=${message.MsgType}`);
+            // Type=1 表示弹幕消息
+            if (outerMessage.Type !== 1 || !outerMessage.Data) {
+                logger.debug(`[弹幕监听] 跳过消息, Type=${outerMessage.Type}`);
+                return;
             }
 
-            // 其他消息类型可根据需要处理
-            // MsgType: 2=点赞, 3=进入, 4=关注, 5=礼物, 6=统计, 7=粉丝团, 8=分享, 9=下播
+            // 第二层解析：Data字段是JSON字符串，需要再解析
+            const innerMessage = JSON.parse(outerMessage.Data);
+
+            logger.debug(`[弹幕监听] 解析成功, 用户=${innerMessage.User?.Nickname}, 内容=${innerMessage.Content}`);
+
+            // 构建弹幕对象
+            const barrage = {
+                user: innerMessage.User?.Nickname || '匿名用户',
+                userId: innerMessage.User?.Id || '',
+                content: innerMessage.Content || '',
+                timestamp: innerMessage.MsgId || Date.now(),
+                isAdmin: innerMessage.User?.IsAdmin || false,
+                isAnchor: innerMessage.User?.IsAnchor || false
+            };
+
+            if (!barrage.content) {
+                logger.debug('[弹幕监听] 消息内容为空，跳过');
+                return;
+            }
+
+            logger.info(`[弹幕] ${barrage.user}: ${barrage.content}`);
+
+            // 触发弹幕事件
+            this.emit('barrage', barrage);
+
+            // 检测是否为问题
+            const isQuestionResult = isQuestion(barrage.content);
+            logger.debug(`[问题检测] 检测结果: ${isQuestionResult}, 内容: ${barrage.content}`);
+
+            if (isQuestionResult) {
+                logger.info(`[问题检测] ✅ 识别为问题: ${barrage.user}: ${barrage.content}`);
+                this.emit('question', barrage);
+            } else {
+                logger.debug(`[问题检测] ❌ 不是问题: ${barrage.content}`);
+            }
 
         } catch (error) {
             logger.error(`[弹幕监听] 消息解析失败: ${error.message}`);
+            logger.debug(`[弹幕监听] 错误详情: ${error.stack}`);
         }
     }
+}
+    }
 
-    /**
- * 计划重连
+/**
+* 计划重连
+*/
+scheduleReconnect() {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+        logger.error('[弹幕监听] 已达到最大重连次数，停止重连');
+        this.emit('max-reconnect-reached');
+        return;
+    }
+
+    this.reconnectAttempts++;
+    logger.info(`[弹幕监听] ${this.reconnectInterval / 1000}秒后尝试第 ${this.reconnectAttempts} 次重连...`);
+
+    this.reconnectTimer = setTimeout(() => {
+        this.connect();
+    }, this.reconnectInterval);
+}
+
+/**
+ * 断开连接
  */
-    scheduleReconnect() {
-        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            logger.error('[弹幕监听] 已达到最大重连次数，停止重连');
-            this.emit('max-reconnect-reached');
-            return;
-        }
+disconnect() {
+    logger.info('[弹幕监听] 正在断开连接...');
 
-        this.reconnectAttempts++;
-        logger.info(`[弹幕监听] ${this.reconnectInterval / 1000}秒后尝试第 ${this.reconnectAttempts} 次重连...`);
-
-        this.reconnectTimer = setTimeout(() => {
-            this.connect();
-        }, this.reconnectInterval);
+    if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
     }
 
-    /**
-     * 断开连接
-     */
-    disconnect() {
-        logger.info('[弹幕监听] 正在断开连接...');
-
-        if (this.reconnectTimer) {
-            clearTimeout(this.reconnectTimer);
-            this.reconnectTimer = null;
-        }
-
-        if (this.ws) {
-            this.ws.close();
-            this.ws = null;
-        }
+    if (this.ws) {
+        this.ws.close();
+        this.ws = null;
     }
+}
 
-    /**
-     * 获取连接状态
-     */
-    isConnected() {
-        return this.ws && this.ws.readyState === WebSocket.OPEN;
-    }
+/**
+ * 获取连接状态
+ */
+isConnected() {
+    return this.ws && this.ws.readyState === WebSocket.OPEN;
+}
 }
 
 module.exports = BarrageListener;
