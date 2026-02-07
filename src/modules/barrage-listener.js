@@ -63,6 +63,8 @@ class BarrageListener extends EventEmitter {
         try {
             const message = JSON.parse(data.toString());
 
+            logger.debug(`[弹幕监听] 收到消息, MsgType=${message.MsgType}, Content=${message.Content}`);
+
             // 仅处理普通弹幕消息 (MsgType === 1)
             if (message.MsgType === 1 && message.Content) {
                 const barrage = {
@@ -74,16 +76,23 @@ class BarrageListener extends EventEmitter {
                     isAnchor: message.User?.IsAnchor || false
                 };
 
-                logger.debug(`[弹幕] ${barrage.user}: ${barrage.content}`);
+                logger.info(`[弹幕] ${barrage.user}: ${barrage.content}`);
 
                 // 触发弹幕事件
                 this.emit('barrage', barrage);
 
                 // 检测是否为问题
-                if (isQuestion(barrage.content)) {
-                    logger.info(`[问题检测] ${barrage.user}: ${barrage.content}`);
+                const isQuestionResult = isQuestion(barrage.content);
+                logger.debug(`[问题检测] 检测结果: ${isQuestionResult}, 内容: ${barrage.content}`);
+
+                if (isQuestionResult) {
+                    logger.info(`[问题检测] ✅ 识别为问题: ${barrage.user}: ${barrage.content}`);
                     this.emit('question', barrage);
+                } else {
+                    logger.debug(`[问题检测] ❌ 不是问题: ${barrage.content}`);
                 }
+            } else {
+                logger.debug(`[弹幕监听] 跳过消息, MsgType=${message.MsgType}`);
             }
 
             // 其他消息类型可根据需要处理
@@ -93,48 +102,50 @@ class BarrageListener extends EventEmitter {
             logger.error(`[弹幕监听] 消息解析失败: ${error.message}`);
         }
     }
-
-    /**
-     * 计划重连
-     */
-    scheduleReconnect() {
-        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            logger.error('[弹幕监听] 已达到最大重连次数，停止重连');
-            this.emit('max-reconnect-reached');
-            return;
-        }
-
-        this.reconnectAttempts++;
-        logger.info(`[弹幕监听] ${this.reconnectInterval / 1000}秒后尝试第 ${this.reconnectAttempts} 次重连...`);
-
-        this.reconnectTimer = setTimeout(() => {
-            this.connect();
-        }, this.reconnectInterval);
+}
     }
 
-    /**
-     * 断开连接
-     */
-    disconnect() {
-        logger.info('[弹幕监听] 正在断开连接...');
-
-        if (this.reconnectTimer) {
-            clearTimeout(this.reconnectTimer);
-            this.reconnectTimer = null;
-        }
-
-        if (this.ws) {
-            this.ws.close();
-            this.ws = null;
-        }
+/**
+ * 计划重连
+ */
+scheduleReconnect() {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+        logger.error('[弹幕监听] 已达到最大重连次数，停止重连');
+        this.emit('max-reconnect-reached');
+        return;
     }
 
-    /**
-     * 获取连接状态
-     */
-    isConnected() {
-        return this.ws && this.ws.readyState === WebSocket.OPEN;
+    this.reconnectAttempts++;
+    logger.info(`[弹幕监听] ${this.reconnectInterval / 1000}秒后尝试第 ${this.reconnectAttempts} 次重连...`);
+
+    this.reconnectTimer = setTimeout(() => {
+        this.connect();
+    }, this.reconnectInterval);
+}
+
+/**
+ * 断开连接
+ */
+disconnect() {
+    logger.info('[弹幕监听] 正在断开连接...');
+
+    if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
     }
+
+    if (this.ws) {
+        this.ws.close();
+        this.ws = null;
+    }
+}
+
+/**
+ * 获取连接状态
+ */
+isConnected() {
+    return this.ws && this.ws.readyState === WebSocket.OPEN;
+}
 }
 
 module.exports = BarrageListener;
