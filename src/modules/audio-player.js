@@ -1,11 +1,5 @@
 const EventEmitter = require('events');
-let Speaker;
-try {
-    Speaker = require('speaker');
-} catch (err) {
-    console.warn('[音频播放] Speaker模块未安装，音频播放功能将被禁用');
-    console.warn('[音频播放] 如需启用，请安装Windows SDK并重新运行: npm install speaker');
-}
+const player = require('play-sound')(opts = {});
 const logger = require('../utils/logger');
 
 /**
@@ -119,59 +113,41 @@ class AudioPlayer extends EventEmitter {
     playAudio(audioData, format) {
         return new Promise((resolve, reject) => {
             try {
-                // 检查Speaker是否可用
-                if (!Speaker) {
-                    logger.warn('[音频播放] Speaker模块未安装，保存音频文件代替播放');
+                const fs = require('fs');
+                const path = require('path');
+                const outputDir = './audio-output';
 
-                    // 保存音频文件到output目录
-                    const fs = require('fs');
-                    const path = require('path');
-                    const outputDir = './audio-output';
-
-                    if (!fs.existsSync(outputDir)) {
-                        fs.mkdirSync(outputDir, { recursive: true });
-                    }
-
-                    // 生成文件名：使用时间戳
-                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                    const ext = 'mp3'; // MP3格式
-                    const filename = `tts_${timestamp}.${ext}`;
-                    const filepath = path.join(outputDir, filename);
-
-                    fs.writeFileSync(filepath, audioData);
-                    logger.info(`[音频播放] 音频已保存: ${filepath}`);
-                    logger.info('[音频播放] 提示: 可使用OBS媒体源或其他播放器播放此文件');
-
-                    // 模拟播放延迟后直接返回
-                    setTimeout(() => resolve(), 100);
-                    return;
+                // 确保输出目录存在
+                if (!fs.existsSync(outputDir)) {
+                    fs.mkdirSync(outputDir, { recursive: true });
                 }
 
-                // 创建Speaker实例
-                this.currentSpeaker = new Speaker({
-                    channels: format.channels || this.audioFormat.channels,
-                    bitDepth: format.bitDepth || this.audioFormat.bitDepth,
-                    sampleRate: format.sampleRate || this.audioFormat.sampleRate
-                });
+                // 生成MP3文件
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const filename = `tts_${timestamp}.mp3`;
+                const filepath = path.join(outputDir, filename);
 
-                // 监听播放完成事件
-                this.currentSpeaker.on('close', () => {
-                    this.currentSpeaker = null;
-                    resolve();
-                });
+                // 保存音频文件
+                fs.writeFileSync(filepath, audioData);
+                logger.info(`[音频播放] 音频已保存: ${filepath}`);
 
-                // 监听错误事件
-                this.currentSpeaker.on('error', (error) => {
-                    logger.error(`[音频播放] Speaker错误: ${error.message}`);
-                    this.currentSpeaker = null;
-                    reject(error);
-                });
+                // 使用play-sound播放
+                logger.info('[音频播放] 开始播放音频...');
 
-                // 写入音频数据
-                this.currentSpeaker.write(audioData);
-                this.currentSpeaker.end();
+                player.play(filepath, (err) => {
+                    if (err) {
+                        logger.error(`[音频播放] 播放失败: ${err.message}`);
+                        logger.warn('[音频播放] 提示: 音频文件已保存，可手动播放或使用OBS');
+                        // 即使播放失败也resolve，因为文件已保存
+                        resolve();
+                    } else {
+                        logger.info('[音频播放] 播放完成');
+                        resolve();
+                    }
+                });
 
             } catch (error) {
+                logger.error(`[音频播放] 播放错误: ${error.message}`);
                 reject(error);
             }
         });

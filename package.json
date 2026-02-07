@@ -15,6 +15,7 @@
   "dependencies": {
     "axios": "^1.6.0",
     "config": "^3.3.9",
+    "play-sound": "^1.1.6",
     "uuid": "^9.0.1",
     "winston": "^3.11.0",
     "ws": "^8.14.2"
