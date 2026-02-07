@@ -19,11 +19,11 @@ class AudioPlayer extends EventEmitter {
         this.isPlaying = false;
         this.currentSpeaker = null;
 
-        // 默认音频格式 (PCM)
+        // 默认音频格式 (PCM) - 与TTS输出格式匹配
         this.audioFormat = {
             channels: 1,          // 单声道
             bitDepth: 16,         // 16位
-            sampleRate: 16000     // 16kHz
+            sampleRate: 24000     // 24kHz (与TTS输出匹配)
         };
     }
 

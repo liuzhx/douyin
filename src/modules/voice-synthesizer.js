@@ -94,7 +94,7 @@ class VoiceSynthesizer extends EventEmitter {
         const appId = config.get('seedTts.appId');
         const accessKey = config.get('seedTts.accessToken');
         const voiceType = options.voiceType || config.get('seedTts.voiceType');
-        const encoding = options.encoding || 'mp3';
+        const encoding = options.encoding || 'pcm';  // 改为PCM格式以支持Speaker直接播放
 
         // 准备请求头 - 与成功案例一致
         const headers = {
