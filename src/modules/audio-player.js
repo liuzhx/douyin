@@ -121,8 +121,27 @@ class AudioPlayer extends EventEmitter {
             try {
                 // 检查Speaker是否可用
                 if (!Speaker) {
-                    logger.warn('[音频播放] Speaker模块未安装，跳过音频播放');
-                    logger.info('[音频播放] 提示: 安装Windows SDK后运行 npm install speaker 即可启用音频功能');
+                    logger.warn('[音频播放] Speaker模块未安装，保存音频文件代替播放');
+
+                    // 保存音频文件到output目录
+                    const fs = require('fs');
+                    const path = require('path');
+                    const outputDir = './audio-output';
+
+                    if (!fs.existsSync(outputDir)) {
+                        fs.mkdirSync(outputDir, { recursive: true });
+                    }
+
+                    // 生成文件名：使用时间戳
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    const ext = 'mp3'; // MP3格式
+                    const filename = `tts_${timestamp}.${ext}`;
+                    const filepath = path.join(outputDir, filename);
+
+                    fs.writeFileSync(filepath, audioData);
+                    logger.info(`[音频播放] 音频已保存: ${filepath}`);
+                    logger.info('[音频播放] 提示: 可使用OBS媒体源或其他播放器播放此文件');
+
                     // 模拟播放延迟后直接返回
                     setTimeout(() => resolve(), 100);
                     return;
