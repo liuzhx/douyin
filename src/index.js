@@ -3,7 +3,7 @@ const logger = require('./utils/logger');
 const BarrageListener = require('./modules/barrage-listener');
 const SpotNarrator = require('./modules/spot-narrator');
 const QAEngine = require('./modules/qa-engine');
-const VoiceSynthesizer = require('./modules/voice-synthesizer');
+const VoiceSynthesizer = require('./modules/voice-synthesizer-websocket');
 const AudioPlayer = require('./modules/audio-player');
 const DoubaoAIService = require('./modules/doubao-ai-service');
 
@@ -37,11 +37,10 @@ class DouyinLiveAssistant {
             logger.info('[初始化] 问答引擎...');
             this.qaEngine = new QAEngine(this.spotNarrator);
 
-            // 3. 初始化语音合成模块
+            // 3. 初始化语音合成模块 (WebSocket)
             logger.info('[初始化] 语音合成模块...');
             this.voiceSynthesizer = new VoiceSynthesizer();
-            // Doubao-Realtime连接可选(如果只用Seed-TTS可跳过)
-            // await this.voiceSynthesizer.initializeDoubaoRealtime();
+            await this.voiceSynthesizer.connect();
 
             // 4. 初始化音频播放模块
             logger.info('[初始化] 音频播放模块...');
