@@ -47,7 +47,7 @@
         "narratorPriority": "normal"
     },
     "logging": {
-        "level": "info",
+        "level": "debug",
         "directory": "./logs",
         "maxFiles": 7,
         "maxSize": "10m"

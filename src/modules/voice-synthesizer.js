@@ -144,7 +144,11 @@ class VoiceSynthesizer extends EventEmitter {
             return new Promise((resolve, reject) => {
                 response.data.on('data', (chunk) => {
                     chunkCount++;
-                    buffer += chunk.toString();
+                    const chunkStr = chunk.toString();
+                    logger.debug(`[语音合成] 收到原始数据块 ${chunkCount}, 长度: ${chunkStr.length} 字符`);
+                    logger.debug(`[语音合成] 原始数据块内容 (前200字符): ${chunkStr.substring(0, 200)}`);
+
+                    buffer += chunkStr;
 
                     // 按行处理 JSON
                     const lines = buffer.split('\n');
@@ -153,14 +157,17 @@ class VoiceSynthesizer extends EventEmitter {
                     for (const line of lines) {
                         if (!line.trim()) continue;
 
+                        logger.debug(`[语音合成] 处理JSON行 (前200字符): ${line.substring(0, 200)}`);
+
                         try {
                             const data = JSON.parse(line);
+                            logger.info(`[语音合成] 解析JSON成功, code=${data.code}, 包含data字段=${!!data.data}, 包含message字段=${!!data.message}`);
 
                             if (data.code === 0 && data.data) {
                                 // 音频数据块 (base64编码)
                                 const audioBuffer = Buffer.from(data.data, 'base64');
                                 audioChunks.push(audioBuffer);
-                                logger.debug(`[语音合成] 收到音频块 ${audioChunks.length}, 大小: ${audioBuffer.length} bytes`);
+                                logger.info(`[语音合成] 收到音频块 ${audioChunks.length}, 大小: ${audioBuffer.length} bytes`);
                             } else if (data.code === 20000000) {
                                 // 合成完成
                                 logger.info(`[语音合成] 合成完成, 共 ${audioChunks.length} 个音频块`);
@@ -168,16 +175,25 @@ class VoiceSynthesizer extends EventEmitter {
                                     logger.debug(`[语音合成] 使用统计: ${JSON.stringify(data.usage)}`);
                                 }
                             } else if (data.code > 0) {
-                                logger.error(`[语音合成] API错误: ${data.message || data.code}`);
+                                logger.error(`[语音合成] API错误: code=${data.code}, message=${data.message || '无'}`);
+                                logger.error(`[语音合成] 完整错误数据: ${JSON.stringify(data)}`);
                                 reject(new Error(`TTS API错误: ${data.message || data.code}`));
+                            } else {
+                                logger.warn(`[语音合成] 未知响应: ${JSON.stringify(data)}`);
                             }
                         } catch (parseError) {
                             logger.error(`[语音合成] JSON解析失败: ${parseError.message}`);
+                            logger.error(`[语音合成] 无法解析的行: ${line}`);
                         }
                     }
                 });
 
                 response.data.on('end', () => {
+                    logger.info(`[语音合成] 流结束, 总共收到 ${chunkCount} 个数据块, ${audioChunks.length} 个音频块`);
+                    if (buffer.trim()) {
+                        logger.warn(`[语音合成] 缓冲区剩余未处理数据: ${buffer}`);
+                    }
+
                     if (audioChunks.length === 0) {
                         logger.error('[语音合成] 未收到音频数据');
                         reject(new Error('未收到音频数据'));
