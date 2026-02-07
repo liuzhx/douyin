@@ -109,7 +109,7 @@ class VoiceSynthesizer extends EventEmitter {
                 },
                 {
                     headers: {
-                        'Authorization': `Bearer ${accessToken}`,
+                        'Authorization': `Bearer;${accessToken}`,
                         'Content-Type': 'application/json'
                     },
                     responseType: 'arraybuffer',
