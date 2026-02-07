@@ -32,10 +32,10 @@ function extractKeywords(question) {
     // 简单的关键词提取（可以后续优化为NLP分词）
     const keywords = [];
 
-    // 移除问号和疑问词
-    let cleanText = question.replace(/[??]/g, '');
-    const questionWords = ['怎么', '如何', '多少', '哪里', '什么', '为什么', '吗', '呢'];
-    questionWords.forEach(word => {
+    // 移除问号和无意义的助词，但保留量词和重要疑问词
+    let cleanText = question.replace(/[?？]/g, '');
+    const fillerWords = ['吗', '呢', '啊', '呀'];  // 只移除助词，保留多少、几个、什么等
+    fillerWords.forEach(word => {
         cleanText = cleanText.replace(new RegExp(word, 'g'), '');
     });
 
