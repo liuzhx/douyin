@@ -37,15 +37,20 @@ class DouyinLiveAssistant {
             logger.info('[初始化] 问答引擎...');
             this.qaEngine = new QAEngine(this.spotNarrator);
 
-            // 3. 初始化语音合成模块 (HTTP API)
+            // 3. 初始化Doubao AI服务
+            logger.info('[初始化] Doubao AI服务...');
+            this.doubaoAIService = new DoubaoAIService();
+            await this.doubaoAIService.connect();
+
+            // 4. 初始化语音合成模块 (HTTP API)
             logger.info('[初始化] 语音合成模块...');
             this.voiceSynthesizer = new VoiceSynthesizer();
 
-            // 4. 初始化音频播放模块
+            // 5. 初始化音频播放模块
             logger.info('[初始化] 音频播放模块...');
             this.audioPlayer = new AudioPlayer();
 
-            // 5. 初始化弹幕监听模块
+            // 6. 初始化弹幕监听模块
             logger.info('[初始化] 弹幕监听模块...');
             this.barrageListener = new BarrageListener();
 
@@ -161,25 +166,22 @@ class DouyinLiveAssistant {
     async generateAIAnswer(question, context) {
         logger.info('[AI生成] 生成答案中...');
 
-        // TODO: 集成Doubao大模型API
-        // 这里是一个简化的模拟实现
+        try {
+            // 调用Doubao AI服务生成答案
+            const result = await this.doubaoAIService.askQuestion(question.content, context);
 
-        const prompt = `作为一名专业的旅游导游，请回答观众的问题。
+            if (result && result.text) {
+                logger.info(`[AI生成] ✅ AI回答: ${result.text.substring(0, 50)}...`);
+                return result.text;
+            } else {
+                logger.warn('[AI生成] AI返回了空答案');
+                return `很抱歉，我暂时无法回答这个问题。请稍后向主播咨询。`;
+            }
 
-当前景点: ${context.currentSpot ? context.currentSpot.name : '未知'}
-景点分类: ${context.currentSpot ? context.currentSpot.category : '未知'}
-
-观众问题: ${question.content}
-
-请用简洁、友好、专业的语气回答，不超过100字。`;
-
-        logger.debug(`[AI生成] Prompt: ${prompt}`);
-
-        // 模拟API调用延迟
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // 返回默认答案(实际应该调用API)
-        return `很抱歉，我暂时无法回答这个问题。请稍后向主播咨询，或者在评论区留言，我会尽快回复您。`;
+        } catch (error) {
+            logger.error(`[AI生成] 生成答案失败: ${error.message}`);
+            return `很抱歉，我暂时无法回答这个问题。请稍后向主播咨询，或者在评论区留言。`;
+        }
     }
 
     /**
