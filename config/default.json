@@ -5,18 +5,18 @@
         "maxReconnectAttempts": 10
     },
     "doubao": {
-        "appId": "YOUR_APP_ID",
-        "accessToken": "YOUR_ACCESS_TOKEN",
+        "appId": "3003499965",
+        "accessToken": "0CRBPdn9zguztvzUaMsnqAmaXhLZ2yyn",
         "realtimeUrl": "wss://openspeech.bytedance.com/api/v3/realtime/dialogue",
         "resourceId": "volc.speech.dialog",
         "appKey": "PlgvMymc7f3tQnJ6"
     },
     "seedTts": {
         "wsUrl": "wss://openspeech.bytedance.com/api/v3/tts/bidirection",
-        "appId": "YOUR_APP_ID",
-        "accessToken": "YOUR_ACCESS_TOKEN",
-        "voiceType": "zh_female_tianmeitaozi_mars_bigtts",
-        "resourceId": "auto"
+        "appId": "3003499965",
+        "accessToken": "0CRBPdn9zguztvzUaMsnqAmaXhLZ2yyn",
+        "voiceType": "S_DNUmHxuJ1",
+        "resourceId": "volc.megatts.default"
     },
     "narrator": {
         "mode": "sequential",
