@@ -91,40 +91,68 @@ class VoiceSynthesizer extends EventEmitter {
         logger.info(`[语音合成] Seed-TTS合成: ${text.substring(0, 30)}...`);
 
         const apiUrl = config.get('seedTts.apiUrl');
+        const appId = config.get('seedTts.appId');
         const accessToken = config.get('seedTts.accessToken');
         const voiceType = options.voiceType || config.get('seedTts.voiceType');
-        const resourceId = config.get('seedTts.resourceId');
+
+        // V3 API请求格式
+        const requestBody = {
+            app: {
+                appid: appId,
+                token: accessToken,
+                cluster: "volcano_tts"
+            },
+            user: {
+                uid: "anonymous"
+            },
+            audio: {
+                voice_type: voiceType,
+                encoding: options.encoding || "mp3",
+                speed_ratio: options.speedRatio || 1.0,
+                volume_ratio: options.volumeRatio || 1.0,
+                pitch_ratio: options.pitchRatio || 1.0
+            },
+            request: {
+                reqid: require('crypto').randomUUID(),
+                text: text,
+                text_type: "plain",
+                operation: "query",
+                with_frontend: 1,
+                frontend_type: "unitTson"
+            }
+        };
 
         try {
             const response = await axios.post(
                 apiUrl,
-                {
-                    text: text,
-                    voice_type: voiceType,
-                    resource_id: resourceId,
-                    encoding: 'pcm',
-                    speed_ratio: options.speedRatio || 1.0,
-                    volume_ratio: options.volumeRatio || 1.0,
-                    pitch_ratio: options.pitchRatio || 1.0
-                },
+                requestBody,
                 {
                     headers: {
                         'Authorization': `Bearer;${accessToken}`,
                         'Content-Type': 'application/json'
                     },
-                    responseType: 'arraybuffer',
                     timeout: 30000
                 }
             );
 
             logger.info('[语音合成] Seed-TTS合成成功');
-            return Buffer.from(response.data);
+
+            // V3 API返回JSON格式，音频数据是base64编码的
+            if (response.data && response.data.data) {
+                const audioBase64 = response.data.data;
+                return Buffer.from(audioBase64, 'base64');
+            } else {
+                throw new Error('响应格式不正确：缺少音频数据');
+            }
 
         } catch (error) {
             logger.error(`[语音合成] Seed-TTS合成失败: ${error.message}`);
 
             if (error.response) {
                 logger.error(`[语音合成] API响应: ${error.response.status} - ${error.response.statusText}`);
+                if (error.response.data) {
+                    logger.error(`[语音合成] 响应内容: ${JSON.stringify(error.response.data)}`);
+                }
             }
 
             throw error;

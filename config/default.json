@@ -12,7 +12,7 @@
         "appKey": "PlgvMymc7f3tQnJ6"
     },
     "seedTts": {
-        "apiUrl": "https://openspeech.bytedance.com/api/v1/tts",
+        "apiUrl": "https://openspeech.bytedance.com/api/v3/tts/unidirectional",
         "appId": "3003499965",
         "accessToken": "0CRBPdn9zguztvzUaMsnqAmaXhLZ2yyn",
         "voiceType": "S_DNUmHxuJ1",
