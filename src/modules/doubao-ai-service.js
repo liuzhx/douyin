@@ -120,6 +120,15 @@ class DoubaoAIService extends EventEmitter {
         } catch (error) {
             // 如果不是JSON，可能是二进制数据
             logger.debug(`[Doubao AI] 收到二进制数据: ${data.length} bytes`);
+
+            // 尝试作为文本解码
+            try {
+                const text = data.toString('utf8');
+                logger.warn(`[Doubao AI] 二进制数据(文本): ${text}`);
+            } catch (e) {
+                logger.debug(`[Doubao AI] 二进制数据(hex): ${data.toString('hex').substring(0, 200)}`);
+            }
+
             this.emit('binary-data', data);
         }
     }
