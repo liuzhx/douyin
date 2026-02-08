@@ -44,6 +44,17 @@
         "qaPriority": "high",
         "narratorPriority": "normal"
     },
+    "voiceCloning": {
+        "enabled": true,
+        "wsUrl": "wss://openspeech.bytedance.com/api/v1/tts/ws_binary",
+        "appId": "3003499965",
+        "token": "0CRBPdn9zguztvzUaMsnqAmaXhLZ2yyn",
+        "cluster": "volcano_icl",
+        "voiceType": "S_zBLkHxuJ1",
+        "encoding": "mp3",
+        "rate": 24000,
+        "speedRatio": 1.0
+    },
     "logging": {
         "level": "debug",
         "directory": "./logs",

@@ -42,9 +42,11 @@ class DouyinLiveAssistant {
             this.doubaoAIService = new DoubaoAIService();
             await this.doubaoAIService.connect();
 
-            // 4. 初始化语音合成模块 (HTTP API)
-            logger.info('[初始化] 语音合成模块...');
-            this.voiceSynthesizer = new VoiceSynthesizer();
+            // 4. 初始化声音复刻模块
+            logger.info('[初始化] 声音复刻模块...');
+            const VoiceCloningService = require('./modules/voice-cloning-service');
+            this.voiceSynthesizer = new VoiceCloningService();
+            await this.voiceSynthesizer.connect();
 
             // 5. 初始化音频播放模块
             logger.info('[初始化] 音频播放模块...');
@@ -86,7 +88,7 @@ class DouyinLiveAssistant {
 
             try {
                 // 合成语音
-                const audioData = await this.voiceSynthesizer.synthesize(data.answer, 'qa');
+                const audioBuffer = await this.voiceSynthesizer.synthesize(data.answer);
 
                 // 播放(高优先级)
                 await this.audioPlayer.play(audioData, {
@@ -120,7 +122,7 @@ class DouyinLiveAssistant {
 
             try {
                 // 合成语音
-                const audioData = await this.voiceSynthesizer.synthesize(data.content, 'narration');
+                const audioBuffer = await this.voiceSynthesizer.synthesize(data.content);
 
                 // 播放(普通优先级)
                 await this.audioPlayer.play(audioData, {
