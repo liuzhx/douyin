@@ -88,7 +88,7 @@ class DouyinLiveAssistant {
 
             try {
                 // 合成语音
-                const audioBuffer = await this.voiceSynthesizer.synthesize(data.answer);
+                const audioData = await this.voiceSynthesizer.synthesize(data.answer);
 
                 // 播放(高优先级)
                 await this.audioPlayer.play(audioData, {
@@ -122,7 +122,7 @@ class DouyinLiveAssistant {
 
             try {
                 // 合成语音
-                const audioBuffer = await this.voiceSynthesizer.synthesize(data.content);
+                const audioData = await this.voiceSynthesizer.synthesize(data.content);
 
                 // 播放(普通优先级)
                 await this.audioPlayer.play(audioData, {
