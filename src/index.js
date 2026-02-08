@@ -133,12 +133,20 @@ class DouyinLiveAssistant {
             }
         });
 
-        // 音频播放完成 -> 恢复讲解
+        // 音频播放完成 -> 恢复讲解或继续连续播放
         this.audioPlayer.on('play-end', (data) => {
             if (data.type === 'qa') {
                 // 问答播放完成，恢复讲解
                 logger.info('[事件] 问答播放完成，恢复讲解');
                 this.spotNarrator.resume();
+            } else if (data.type === 'narration') {
+                // 讲解播放完成
+                // 如果是连续播放模式（intervalMinutes为0）且未暂停，立即播放下一段
+                const narratorConfig = config.get('narrator');
+                if (narratorConfig.intervalMinutes === 0 && !this.spotNarrator.isPaused) {
+                    logger.debug('[事件] 连续播放模式，立即播放下一段');
+                    setTimeout(() => this.spotNarrator.playNext(), 500);  // 短暂延迟避免过快
+                }
             }
         });
 

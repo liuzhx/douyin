@@ -85,19 +85,27 @@ class SpotNarrator extends EventEmitter {
             return;
         }
 
-        logger.info(`[景点讲解] 开始自动讲解，间隔: ${this.intervalMinutes}分钟，模式: ${this.mode}`);
+        // 支持连续播放模式（intervalMinutes为0）
+        if (this.intervalMinutes === 0) {
+            logger.info(`[景点讲解] 开始连续讲解模式，模式: ${this.mode}`);
+            logger.info('[景点讲解] 提示: 连续播放模式下，讲解会无间隔连续播放');
+        } else {
+            logger.info(`[景点讲解] 开始自动讲解，间隔: ${this.intervalMinutes}分钟，模式: ${this.mode}`);
+        }
 
         // 立即播放第一段
         if (this.autoStart) {
             setTimeout(() => this.playNext(), 2000);
         }
 
-        // 设置定时器
-        this.intervalTimer = setInterval(() => {
-            if (!this.isPaused) {
-                this.playNext();
-            }
-        }, this.intervalMinutes * 60 * 1000);
+        // 只有在非连续模式下才设置定时器
+        if (this.intervalMinutes > 0) {
+            this.intervalTimer = setInterval(() => {
+                if (!this.isPaused) {
+                    this.playNext();
+                }
+            }, this.intervalMinutes * 60 * 1000);
+        }
 
         this.emit('started');
     }
