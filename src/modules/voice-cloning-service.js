@@ -3,9 +3,11 @@ const EventEmitter = require('events');
 const config = require('config');
 const logger = require('../utils/logger');
 const { v4: uuidv4 } = require('uuid');
+const zlib = require('zlib');
 
 /**
  * 声音复刻服务 - 使用火山引擎WebSocket V1二进制协议
+ * 完全按照Python官方demo实现
  * API: wss://openspeech.bytedance.com/api/v1/tts/ws_binary
  */
 class VoiceCloningService extends EventEmitter {
@@ -36,12 +38,15 @@ class VoiceCloningService extends EventEmitter {
     async connect() {
         return new Promise((resolve, reject) => {
             try {
-                // 设置认证header
+                // 设置认证header - 注意分号和空格
                 const headers = {
-                    'Authorization': `Bearer;${this.token}`
+                    'Authorization': `Bearer; ${this.token}`
                 };
 
-                this.ws = new WebSocket(this.wsUrl, { headers });
+                this.ws = new WebSocket(this.wsUrl, {
+                    headers,
+                    perMessageDeflate: false  // 禁用自动压缩
+                });
 
                 this.ws.on('open', () => {
                     this.isConnected = true;
@@ -72,66 +77,84 @@ class VoiceCloningService extends EventEmitter {
     }
 
     /**
-     * 处理二进制消息
+     * 处理二进制消息（按照Python demo格式）
      */
     handleBinaryMessage(data) {
         try {
-            // 解析二进制header (4 bytes)
-            const header = data.readUInt32BE(0);
+            // 解析header（Python demo方式）
+            const protocolVersion = data[0] >> 4;
+            const headerSize = data[0] & 0x0f;
+            const messageType = data[1] >> 4;
+            const messageTypeFlags = data[1] & 0x0f;
+            const serializationMethod = data[2] >> 4;
+            const compressionMethod = data[2] & 0x0f;
 
-            // 提取字段
-            const protocolVersion = (header >> 28) & 0xF;
-            const headerSize = (header >> 24) & 0xF;
-            const messageType = (header >> 20) & 0xF;
-            const messageTypeFlags = (header >> 16) & 0xF;
-            const serializationMethod = (header >> 12) & 0xF;
-            const compressionMethod = (header >> 8) & 0xF;
+            const headerBytes = headerSize * 4;
+            let payload = data.slice(headerBytes);
 
-            logger.debug(`[声音复刻] 收到消息 - Type: ${messageType}, Flags: ${messageTypeFlags}`);
+            logger.debug(`[声音复刻] 收到消息 - Type: 0x${messageType.toString(16)}, Flags: ${messageTypeFlags}`);
 
-            // 0b1011 = Audio-only server response
-            if (messageType === 0b1011) {
-                // 音频数据从第4字节开始
-                const audioData = data.slice(4);
+            // 0xb = 11 = Audio-only server response
+            if (messageType === 0xb) {
+                if (messageTypeFlags === 0) {
+                    // No sequence number (ACK)
+                    logger.debug('[声音复刻] 收到ACK');
+                    return;
+                }
 
+                // 提取sequence number (4 bytes, signed) 和 payload size (4 bytes, unsigned)
+                const sequenceNumber = payload.readInt32BE(0);
+                const payloadSize = payload.readUInt32BE(4);
+                const audioData = payload.slice(8);  // 跳过seq(4) + size(4) = 8字节
+
+                logger.debug(`[声音复刻] - Sequence: ${sequenceNumber}, Size: ${payloadSize} bytes`);
+
+                // 保存音频数据
                 this.audioChunks.push(audioData);
 
-                // messageTypeFlags == 0b0010 or 0b0011 表示最后一个片段
-                if (messageTypeFlags >= 0b0010) {
+                // sequence < 0 表示最后一个片段
+                if (sequenceNumber < 0) {
                     logger.info('[声音复刻] ✅ 接收完成');
                     this.emitAudioComplete();
                 }
 
-            } else if (messageType === 0b1111) {
+            } else if (messageType === 0xf) {
                 // 错误消息
-                const errorMsg = data.slice(4).toString('utf-8');
-                logger.error(`[声音复刻] 服务器错误: ${errorMsg}`);
-                this.emit('error', new Error(errorMsg));
-            } else {
-                // 可能是JSON响应
-                const payload = data.slice(4).toString('utf-8');
-                try {
-                    const response = JSON.parse(payload);
-                    logger.debug(`[声音复刻] JSON响应: ${JSON.stringify(response)}`);
+                const code = payload.readUInt32BE(0);
+                const msgSize = payload.readUInt32BE(4);
+                let errorMsg = payload.slice(8);
 
-                    if (response.code !== 3000) {
-                        logger.error(`[声音复刻] 合成失败: ${response.message} (${response.code})`);
-                        this.emit('error', new Error(response.message));
-                    }
-                } catch (e) {
-                    logger.warn('[声音复刻] 无法解析响应为JSON');
+                // 如果有gzip压缩
+                if (compressionMethod === 1) {
+                    errorMsg = zlib.gunzipSync(errorMsg);
                 }
+
+                const errorText = errorMsg.toString('utf-8');
+                logger.error(`[声音复刻] 服务器错误 ${code}: ${errorText}`);
+                this.emit('error', new Error(errorText));
+
+            } else if (messageType === 0xc) {
+                // Frontend message
+                const msgSize = payload.readUInt32BE(0);
+                payload = payload.slice(4);
+
+                if (compressionMethod === 1) {
+                    payload = zlib.gunzipSync(payload);
+                }
+
+                logger.debug(`[声音复刻] Frontend消息: ${payload.toString('utf-8')}`);
+            } else {
+                logger.warn(`[声音复刻] 未知消息类型: 0x${messageType.toString(16)}`);
             }
 
         } catch (error) {
             logger.error(`[声音复刻] 处理消息失败: ${error.message}`);
+            logger.error(error.stack);
         }
     }
 
     /**
      * 合成语音
-     * @param {string} text - 要合成的文本
-     * @returns {Promise<Buffer>} - 音频数据
      */
     async synthesize(text) {
         return new Promise((resolve, reject) => {
@@ -142,7 +165,7 @@ class VoiceCloningService extends EventEmitter {
             // 限制文本长度
             if (Buffer.byteLength(text, 'utf-8') > 1024) {
                 logger.warn('[声音复刻] 文本过长，截断到1024字节');
-                text = text.substring(0, 300); // 约1024字节UTF-8
+                text = text.substring(0, 300);
             }
 
             // 清空之前的音频缓存
@@ -153,17 +176,18 @@ class VoiceCloningService extends EventEmitter {
             const payload = {
                 app: {
                     appid: this.appId,
-                    token: this.token,
+                    token: "access_token",  // Python demo中的固定值
                     cluster: this.cluster
                 },
                 user: {
-                    uid: 'douyin_assistant'
+                    uid: "douyin_assistant"
                 },
                 audio: {
                     voice_type: this.voiceType,
                     encoding: this.encoding,
-                    rate: this.rate,
-                    speed_ratio: this.speedRatio
+                    speed_ratio: this.speedRatio,
+                    volume_ratio: 1.0,
+                    pitch_ratio: 1.0
                 },
                 request: {
                     reqid: this.currentReqId,
@@ -174,7 +198,6 @@ class VoiceCloningService extends EventEmitter {
             };
 
             logger.info(`[声音复刻] 开始合成: ${text.substring(0, 50)}...`);
-            logger.debug(`[声音复刻] 请求ID: ${this.currentReqId}`);
 
             // 监听完成事件
             const onComplete = (audioBuffer) => {
@@ -202,53 +225,44 @@ class VoiceCloningService extends EventEmitter {
     }
 
     /**
-     * 发送二进制格式请求
+     * 发送二进制格式请求（完全按照Python demo）
      */
     sendBinaryRequest(payload) {
-        // 将payload转为JSON字符串
+        // 1. JSON序列化并gzip压缩
         const payloadJson = JSON.stringify(payload);
         const payloadBuffer = Buffer.from(payloadJson, 'utf-8');
+        const compressedPayload = zlib.gzipSync(payloadBuffer);
 
-        // 构建4字节header
-        const protocolVersion = 0b0001;
-        const headerSize = 0b0001;  // 4 bytes
-        const messageType = 0b0001;  // full client request
-        const messageTypeFlags = 0b0000;
-        const serializationMethod = 0b0001;  // JSON
-        const compressionMethod = 0b0000;  // 无压缩
-        const reserved = 0x00;
+        // 2. 构建header（4字节）
+        // Python demo: default_header = bytearray(b'\x11\x10\x11\x00')
+        // 0x11 = 0001 0001 = protocol(0001) + header_size(0001)
+        // 0x10 = 0001 0000 = message_type(0001) + flags(0000)
+        // 0x11 = 0001 0001 = serialization(0001, JSON) + compression(0001, gzip)
+        // 0x00 = reserved
+        const header = Buffer.from([0x11, 0x10, 0x11, 0x00]);
 
-        const header = (
-            (protocolVersion << 28) |
-            (headerSize << 24) |
-            (messageType << 20) |
-            (messageTypeFlags << 16) |
-            (serializationMethod << 12) |
-            (compressionMethod << 8) |
-            reserved
-        );
+        // 3. Payload size（4字节，big-endian）
+        const payloadSize = Buffer.allocUnsafe(4);
+        payloadSize.writeUInt32BE(compressedPayload.length, 0);
 
-        const headerBuffer = Buffer.allocUnsafe(4);
-        headerBuffer.writeUInt32BE(header, 0);
+        // 4. 组装：header(4) + payload_size(4) + compressed_payload
+        const message = Buffer.concat([header, payloadSize, compressedPayload]);
 
-        // 合并header和payload
-        const message = Buffer.concat([headerBuffer, payloadBuffer]);
+        logger.debug(`[声音复刻] 发送请求`);
+        logger.debug(`[声音复刻] - 原始payload: ${payloadBuffer.length} bytes`);
+        logger.debug(`[声音复刻] - 压缩后: ${compressedPayload.length} bytes`);
+        logger.debug(`[声音复刻] - 总大小: ${message.length} bytes`);
 
-        logger.debug(`[声音复刻] 发送请求，大小: ${message.length} bytes`);
-
-        // 关键修复：明确指定为binary模式
-        this.ws.send(message, { binary: true });
+        // 5. 发送
+        this.ws.send(message);
     }
 
     /**
      * 音频接收完成
      */
     emitAudioComplete() {
-        // 合并所有音频片段
         const audioBuffer = Buffer.concat(this.audioChunks);
-
         logger.info(`[声音复刻] ✅ 合成完成，音频大小: ${audioBuffer.length} bytes`);
-
         this.emit('audio-complete', audioBuffer);
         this.audioChunks = [];
     }
