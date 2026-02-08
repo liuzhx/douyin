@@ -235,7 +235,9 @@ class VoiceCloningService extends EventEmitter {
         const message = Buffer.concat([headerBuffer, payloadBuffer]);
 
         logger.debug(`[声音复刻] 发送请求，大小: ${message.length} bytes`);
-        this.ws.send(message);
+
+        // 关键修复：明确指定为binary模式
+        this.ws.send(message, { binary: true });
     }
 
     /**
