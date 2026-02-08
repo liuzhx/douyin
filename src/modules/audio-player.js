@@ -161,10 +161,10 @@ class AudioPlayer extends EventEmitter {
             logger.info('[音频播放] 暂停播放');
 
             try {
-                this.currentSpeaker.end();
+                this.currentSpeaker.kill();
                 this.currentSpeaker = null;
             } catch (error) {
-                logger.error(`[音频播放] 暂停失败: ${error.message}`);
+                logger.error(`[音频播放] 暂停/停止失败: ${error.message}`);
             }
 
             this.isPlaying = false;
